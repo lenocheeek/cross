@@ -74,12 +74,41 @@ def print_ir(ir: List[Instruction]):
         if instr.B is not None:
             print(f"  B = {instr.B}")
 
+# ==== КОДИРОВАНИЕ В МАШИННЫЙ КОД ====
+def encode_instruction(instr: Instruction) -> bytes:
+    """Преобразует Instruction в 4-байтовую команду."""
+    A = instr.A
+    B = instr.B or 0
+
+    if instr.mnemonic == "LOAD_CONST":
+        # B: биты 6-21, A: 0-5
+        word = (B << 6) | A
+    elif instr.mnemonic == "LOAD_MEM":
+        # B: биты 6-29, A: 0-5
+        word = (B << 6) | A
+    else:
+        # STORE_MEM и BITREVERSE — без операнда
+        word = A
+
+    return word.to_bytes(4, byteorder='little')
+
+def write_binary_file(ir: List[Instruction], output_path: str):
+    with open(output_path, "wb") as f:
+        for instr in ir:
+            f.write(encode_instruction(instr))
+
+def print_machine_code(ir: List[Instruction]):
+    print(f"Number of instructions: {len(ir)}")
+    for idx, instr in enumerate(ir):
+        bytes_seq = encode_instruction(instr)
+        print(f"Instr {idx}: {' '.join(f'0x{b:02X}' for b in bytes_seq)}")
+
 # ==== CLI ====
 def main():
-    parser = argparse.ArgumentParser(description="Assembler for UVM (stage 1)")
-    parser.add_argument("input", help="Путь к входному .asm файлу")
-    parser.add_argument("output", help="Путь к выходному бинарному файлу (пока не используется)")
-    parser.add_argument("--test", action="store_true", help="Режим тестирования")
+    parser = argparse.ArgumentParser(description="Assembler for UVM (stages 1-2)")
+    parser.add_argument("input", help="Path to input .asm file")
+    parser.add_argument("output", help="Path to output binary file")
+    parser.add_argument("--test", action="store_true", help="Test mode (show IR and machine code)")
 
     args = parser.parse_args()
 
@@ -90,10 +119,13 @@ def main():
         ir = assemble_to_ir(lines)
 
         if args.test:
+            print("=== Intermediate Representation (IR) ===")
             print_ir(ir)
-        else:
-            # На этапе 1 бинарный файл не генерируем
-            pass
+            print("\n=== Machine code ===")
+            print_machine_code(ir)
+
+        write_binary_file(ir, args.output)
+        print(f"Binary file written: {args.output} ({len(ir)} instructions)")
 
     except Exception as e:
         print(f"Ошибка: {e}", file=sys.stderr)
