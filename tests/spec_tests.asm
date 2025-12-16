@@ -1,0 +1,11 @@
+; A = 42, B = 125
+LOAD_CONST 125
+
+; A = 23, B = 558
+LOAD_MEM 558
+
+; A = 1
+STORE_MEM
+
+; A = 60
+BITREVERSE
